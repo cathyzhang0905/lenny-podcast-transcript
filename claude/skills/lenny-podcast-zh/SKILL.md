@@ -9,9 +9,22 @@ When invoked, run the lenny-podcast-transcript CLI to translate a YouTube podcas
 
 ## Required setup (verify before invoking)
 
-1. Repo cloned at `~/path-to/lenny-podcast-transcript/` (ask user where if unsure)
-2. `.venv` set up with `pip install -r requirements.txt`
-3. Env var `AI_API_KEY` available (any OpenAI-compatible provider — OpenAI / DeepSeek / 硅基流动 / Moonshot / 智谱 / OpenRouter)
+1. Repo cloned somewhere on disk
+2. Skill symlinked at `~/.claude/skills/lenny-podcast-zh` → resolves repo via `readlink`
+3. `.venv` set up with `pip install -r requirements.txt`
+4. Env var `AI_API_KEY` available (any OpenAI-compatible provider — OpenAI / DeepSeek / 硅基流动 / Moonshot / 智谱 / OpenRouter)
+
+## Resolving repo path
+
+The skill itself is a symlink target inside the repo at `<REPO>/claude/skills/lenny-podcast-zh`. To get the repo root:
+
+```bash
+REPO=$(cd "$(dirname "$(readlink ~/.claude/skills/lenny-podcast-zh)")/../.." && pwd)
+# Or one-liner:
+REPO=$(cd ~/.claude/skills/lenny-podcast-zh/../../.. && pwd)
+```
+
+If the symlink doesn't exist, ask the user for the repo path explicitly.
 
 If any of these are missing, instruct the user to set them up first — don't try to run the tool partially set up.
 
@@ -26,7 +39,8 @@ If any of these are missing, instruct the user to set them up first — don't tr
 4. **Run the CLI** via Bash:
 
    ```bash
-   cd ~/path-to/lenny-podcast-transcript
+   REPO=$(cd ~/.claude/skills/lenny-podcast-zh/../../.. && pwd)
+   cd "$REPO"
    source .venv/bin/activate
    python lenny_transcript.py --url "<YOUTUBE_URL>"
    ```
