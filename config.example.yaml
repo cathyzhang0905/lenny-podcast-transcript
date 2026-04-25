@@ -1,0 +1,19 @@
+# Fork 模板 - 复制为 config.yaml 后填入你自己的频道
+#
+# 找到一个频道的 channel_id:
+#   1. 浏览器打开该频道任意一集视频
+#   2. 查看页面源码,搜 "channelId" -> "UC..."
+#   3. 把那串 UC 开头的字符填到下面
+
+channels:
+  - name: lenny
+    channel_id: UC6t1O76G0jYXOAoYCm153dA   # 这是 Lenny's Podcast 默认值,可改
+    host: Lenny
+  # 多频道示例:
+  # - name: latent-space
+  #   channel_id: UCxxxxxxxxxxxxxx
+  #   host: Swyx
+
+output_dir: ./transcripts
+filename_template: "{date}_{title}"
+model: Qwen/Qwen2.5-72B-Instruct

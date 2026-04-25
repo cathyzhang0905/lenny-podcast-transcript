@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  macOS launchd 模板 - 每周一 09:00 自动跑 watcher 抓新集
+
+  安装:
+    1. 把这个文件复制到 ~/Library/LaunchAgents/com.lenny-transcript.weekly.plist
+    2. 编辑里面 <REPO_PATH> 和 <YOUR_API_KEY> 占位符为真实路径
+    3. launchctl load ~/Library/LaunchAgents/com.lenny-transcript.weekly.plist
+    4. 测试:launchctl start com.lenny-transcript.weekly
+
+  停止:launchctl unload ~/Library/LaunchAgents/com.lenny-transcript.weekly.plist
+  日志:tail -f <REPO_PATH>/run.log
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.lenny-transcript.weekly</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <string>cd "&lt;REPO_PATH&gt;" &amp;&amp; source .venv/bin/activate &amp;&amp; export SILICONFLOW_API_KEY="&lt;YOUR_API_KEY&gt;" &amp;&amp; python watcher.py 2&gt;&amp;1 | tee -a run.log</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>1</integer>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>&lt;REPO_PATH&gt;/run.log</string>
+    <key>StandardErrorPath</key>
+    <string>&lt;REPO_PATH&gt;/run.log</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

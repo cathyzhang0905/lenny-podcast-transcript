@@ -1,0 +1,9 @@
+# 示例 transcript 占位
+
+跑通你自己的第一集后,可以把它复制到这里作为 fork 用户的 demo:
+
+```bash
+cp transcripts/2026-04-23_*.md examples/sample-transcript.md
+```
+
+这个目录是 README 里"看产物长什么样"的入口。
