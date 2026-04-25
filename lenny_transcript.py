@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""把 YouTube 英文播客字幕翻译成带说话人标注的中文 markdown。
+"""把 YouTube 英文播客字幕处理成带说话人标注的 markdown(中文 / 英文 / 双语)。
 
 调用方式:
   python lenny_transcript.py --url "https://www.youtube.com/watch?v=XXX"
-  python lenny_transcript.py --file path/to/english.md --guest "Cat Wu"
+  python lenny_transcript.py --url "..." --lang en          # 只输出英文
+  python lenny_transcript.py --url "..." --lang both        # 同时输出 .en.md 和 .zh.md
 
-输出包含 YAML frontmatter + 带说话人标注的中文正文。
+输出包含 YAML frontmatter + 带说话人标注的正文。
 """
 
 import argparse
@@ -42,12 +43,42 @@ ASR_FIXES = [
 ]
 
 
-def system_prompt(host: str, guest: str, last_speaker: str | None) -> str:
-    seed = (
-        f"上一个 chunk 末尾说话人是 **{last_speaker}**,本 chunk 开头默认延续此说话人,直到从语境判断切换。"
+def _seed_line(host: str, last_speaker: str | None, lang: str) -> str:
+    if lang == "zh":
+        return (
+            f"上一个 chunk 末尾说话人是 **{last_speaker}**,本 chunk 开头默认延续此说话人,直到从语境判断切换。"
+            if last_speaker
+            else f"第一个 chunk 通常以主持人 **{host}** 的开场白开始。"
+        )
+    return (
+        f"The previous chunk ended with **{last_speaker}** speaking. Continue with this speaker by default until context indicates a switch."
         if last_speaker
-        else f"第一个 chunk 通常以主持人 **{host}** 的开场白开始。"
+        else f"The first chunk typically opens with the host **{host}** introducing the show."
     )
+
+
+def _full_context_block(full_context: str | None, lang: str) -> str:
+    if not full_context:
+        return ""
+    if lang == "zh":
+        return f"""
+
+完整 transcript 上下文(只供你判断 speaker 切换 / 对话节奏 / 整集结构,不要翻译这一段;只翻译 user message 给的那一段):
+
+<full_transcript>
+{full_context}
+</full_transcript>"""
+    return f"""
+
+Full transcript context (use only to judge speaker turns / conversation flow / episode structure — do NOT label this; only label the chunk in the user message):
+
+<full_transcript>
+{full_context}
+</full_transcript>"""
+
+
+def system_prompt_zh(host: str, guest: str, last_speaker: str | None,
+                     full_context: str | None = None) -> str:
     return f"""你是专业的播客翻译。把英文播客的逐字 transcript 翻译成自然的中文对话原文,并标注说话人。
 
 主持人:{host}(host)
@@ -61,23 +92,44 @@ def system_prompt(host: str, guest: str, last_speaker: str | None) -> str:
 
 说话人标注要求:
 5. 在每次说话人切换的地方,用一行 markdown 粗体标注:`**{host}**` 或 `**{guest}**`
-6. 标注独占一行,前后各空一行,例:
-
-   **{host}**
-
-   你之前提到......
-
-   **{guest}**
-
-   是的,我们的看法是......
-
-7. 通过语境判断说话人切换:谁在提问、谁在回答、自我介绍、提及"我们公司是 X"、"今天的嘉宾"等线索
+6. 标注独占一行,前后各空一行
+7. 通过语境判断说话人切换:谁在提问、谁在回答、自我介绍、提及"我们公司是 X"等线索
 8. 一段话内不要切换说话人;不确定时延续当前说话人
-9. {seed}
+9. {_seed_line(host, last_speaker, 'zh')}
+10. 利用下方完整 transcript 上下文,推断出整集对话节奏(如 cold open 会出现金句剪辑 / Lenny 长篇 intro / 中段广告读稿等),让 speaker 切换判断更稳
 
 输出要求:
-10. 直接输出译文,前后不要加说明文字、引号、标题
-11. 第一行就是说话人标注或正文,不要前置任何说明"""
+11. 直接输出译文,前后不要加说明文字、引号、标题
+12. 第一行就是说话人标注或正文{_full_context_block(full_context, 'zh')}"""
+
+
+def system_prompt_en(host: str, guest: str, last_speaker: str | None,
+                     full_context: str | None = None) -> str:
+    return f"""You insert speaker labels into a podcast transcript. Do NOT translate. Output the original English text with speaker labels added.
+
+Host: {host}
+Guest: {guest}
+
+Speaker labeling rules:
+1. At every speaker change, insert a bold markdown label on its own line: `**{host}**` or `**{guest}**`
+2. Each label sits on its own line with blank lines around it
+3. Detect speaker changes from context: who is asking, who is answering, self-references like "we at <Company>", host's intro phrases
+4. Do NOT split a single utterance across speakers; when uncertain, keep the current speaker
+5. {_seed_line(host, last_speaker, 'en')}
+6. Use the full transcript context below to understand the whole episode's pacing (cold open with quote-montages, host's long intro, mid-roll ad reads, etc.) to make speaker decisions more accurate.
+
+Text rules:
+7. Output the original English text verbatim — do not paraphrase, summarize, or translate
+8. Preserve original wording, including filler words and natural speech
+9. Do NOT add timestamps, section headers, or any meta-commentary
+10. Output starts with a speaker label or text immediately — no preamble{_full_context_block(full_context, 'en')}"""
+
+
+def system_prompt(host: str, guest: str, last_speaker: str | None,
+                  lang: str = "zh", full_context: str | None = None) -> str:
+    if lang == "en":
+        return system_prompt_en(host, guest, last_speaker, full_context)
+    return system_prompt_zh(host, guest, last_speaker, full_context)
 
 
 def extract_video_id(url: str) -> str:
@@ -208,36 +260,49 @@ def detect_last_speaker(zh: str, host: str, guest: str) -> str | None:
 
 
 def translate_chunk(client: OpenAI, model: str, chunk: str, host: str,
-                    guest: str, last_speaker: str | None) -> str:
+                    guest: str, last_speaker: str | None, lang: str = "zh",
+                    full_context: str | None = None) -> str:
     resp = client.chat.completions.create(
         model=model,
         max_tokens=8192,
         temperature=0.3,
         messages=[
-            {"role": "system", "content": system_prompt(host, guest, last_speaker)},
+            {"role": "system",
+             "content": system_prompt(host, guest, last_speaker, lang, full_context)},
             {"role": "user", "content": chunk},
         ],
     )
     return (resp.choices[0].message.content or "").strip()
 
 
-def translate_with_speakers(client: OpenAI, model: str, en_text: str,
-                            host: str, guest: str) -> str:
+def process_with_speakers(client: OpenAI, model: str, en_text: str,
+                          host: str, guest: str, lang: str = "zh",
+                          full_context: bool = True) -> str:
+    """lang='zh' 翻译并加 speaker 标注;'en' 仅在原文上加 speaker 标注。
+    full_context=True 时,每个 chunk 的 system prompt 携带完整英文 transcript,
+    LLM 能看到整集对话结构,speaker 标注精度显著提升。"""
     chunks = chunk_by_sentence(en_text, CHUNK_CHAR_LIMIT)
-    print(f"      翻译 {len(chunks)} 块 (model={model}, host={host}, guest={guest})")
+    action = "翻译" if lang == "zh" else "标注 speaker"
+    ctx_note = "+全文上下文" if full_context else "(局部上下文)"
+    print(f"      {action} {len(chunks)} 块 {ctx_note} (model={model}, lang={lang})")
+    full_ctx = en_text if full_context else None
     parts: list[str] = []
     last_speaker: str | None = None
     for i, ch in enumerate(chunks, 1):
-        print(f"      [{i}/{len(chunks)}] {len(ch):,} 字符 → 翻译中…")
-        zh = translate_chunk(client, model, ch, host, guest, last_speaker)
-        parts.append(zh)
-        last_speaker = detect_last_speaker(zh, host, guest) or last_speaker
+        print(f"      [{i}/{len(chunks)}] {len(ch):,} 字符 → 处理中…")
+        out = translate_chunk(client, model, ch, host, guest, last_speaker, lang, full_ctx)
+        parts.append(out)
+        last_speaker = detect_last_speaker(out, host, guest) or last_speaker
     return "\n\n".join(parts)
+
+
+# 向后兼容
+translate_with_speakers = process_with_speakers
 
 
 def build_frontmatter(*, title: str | None, guest: str | None,
                       guest_company: str | None, date: str | None,
-                      video_id: str, url: str) -> str:
+                      video_id: str, url: str, lang: str = "zh") -> str:
     def esc(v: str) -> str:
         return v.replace('"', '\\"')
     lines = ["---"]
@@ -250,8 +315,9 @@ def build_frontmatter(*, title: str | None, guest: str | None,
     lines.append(f"date: {date or _date.today().isoformat()}")
     lines.append(f"video_id: {video_id}")
     lines.append(f"url: {url}")
+    lines.append(f"lang: {lang}")
     lines.append("source: youtube-auto-captions")
-    lines.append("status: working-draft  # 工作稿,未经说话人审阅")
+    lines.append("status: working-draft")
     lines.append("---")
     return "\n".join(lines)
 
@@ -264,9 +330,21 @@ def write_episode(out_path: Path, frontmatter: str, h1_title: str, body: str) ->
     )
 
 
+def _resolve_langs(lang: str) -> list[str]:
+    if lang == "both":
+        return ["en", "zh"]
+    if lang in ("en", "zh"):
+        return [lang]
+    raise ValueError(f"unknown lang: {lang}")
+
+
+def _output_path(out_dir: Path, fname: str, lang: str, multi: bool) -> Path:
+    return out_dir / (f"{fname}.{lang}.md" if multi else f"{fname}.md")
+
+
 def run_url(client: OpenAI, model: str, url: str, out_dir: Path,
             filename_template: str, override_guest: str | None,
-            override_title: str | None) -> None:
+            override_title: str | None, lang: str = "zh") -> None:
     vid = extract_video_id(url)
     print(f"[1/4] 拉视频元信息: {vid}")
     meta = fetch_video_meta(vid)
@@ -280,30 +358,24 @@ def run_url(client: OpenAI, model: str, url: str, out_dir: Path,
     en = fetch_transcript_en(vid)
     print(f"      英文 {len(en):,} 字符")
 
-    print(f"[3/4] 翻译 + 说话人标注")
-    body = translate_with_speakers(client, model, en, HOST_NAME, guest)
-
-    print(f"[4/4] 写入")
+    langs = _resolve_langs(lang)
+    multi = len(langs) > 1
     fname = format_filename(
-        filename_template,
-        date=upload_date,
-        title=title,
-        guest=guest,
-        guest_company=meta.get("author_name"),
-        video_id=vid,
-    )
-    out_path = out_dir / f"{fname}.md"
-    fm = build_frontmatter(
-        title=title,
-        guest=guest,
-        guest_company=meta.get("author_name"),
-        date=upload_date,
-        video_id=vid,
-        url=url,
+        filename_template, date=upload_date, title=title, guest=guest,
+        guest_company=meta.get("author_name"), video_id=vid,
     )
     h1 = f"{guest} — {title}" if title and title != vid else (title or vid)
-    write_episode(out_path, fm, h1, body)
-    print(f"      ✓ {out_path}")
+
+    for li, lg in enumerate(langs, 1):
+        print(f"[3/4] ({li}/{len(langs)}) {'翻译 + ' if lg == 'zh' else ''}说话人标注 (lang={lg})")
+        body = process_with_speakers(client, model, en, HOST_NAME, guest, lg)
+        out_path = _output_path(out_dir, fname, lg, multi)
+        fm = build_frontmatter(
+            title=title, guest=guest, guest_company=meta.get("author_name"),
+            date=upload_date, video_id=vid, url=url, lang=lg,
+        )
+        write_episode(out_path, fm, h1, body)
+        print(f"[4/4] ✓ {out_path}")
 
 
 def split_frontmatter(md_text: str) -> tuple[str, str]:
@@ -316,7 +388,7 @@ def split_frontmatter(md_text: str) -> tuple[str, str]:
 
 def run_file(client: OpenAI, model: str, path: Path, out_dir: Path,
              filename_template: str, override_guest: str | None,
-             override_title: str | None) -> None:
+             override_title: str | None, lang: str = "zh") -> None:
     print(f"[1/3] 读文件: {path}")
     raw = path.read_text(encoding="utf-8")
     fm_in, body_in = split_frontmatter(raw)
@@ -324,31 +396,29 @@ def run_file(client: OpenAI, model: str, path: Path, out_dir: Path,
 
     title = override_title or path.stem
     guest = override_guest or "Guest"
+    langs = _resolve_langs(lang)
+    multi = len(langs) > 1
 
-    print(f"[2/3] 翻译 + 说话人标注")
-    body = translate_with_speakers(client, model, body_in.strip(), HOST_NAME, guest)
-
-    print(f"[3/3] 写入")
-    out_name = override_title or path.stem
     fname = format_filename(
-        filename_template,
-        date=_date.today().isoformat(),
-        title=out_name,
-        guest=guest,
-        guest_company=None,
-        video_id="local",
+        filename_template, date=_date.today().isoformat(),
+        title=override_title or path.stem, guest=guest,
+        guest_company=None, video_id="local",
     )
-    out_path = out_dir / f"{fname}.md"
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    if fm_in:
-        out_path.write_text(f"{fm_in.rstrip()}\n\n{body.strip()}\n", encoding="utf-8")
-    else:
-        fm_new = build_frontmatter(
-            title=title, guest=guest, guest_company=None,
-            date=None, video_id="local", url=str(path),
-        )
-        write_episode(out_path, fm_new, title, body)
-    print(f"      ✓ {out_path}")
+
+    for li, lg in enumerate(langs, 1):
+        print(f"[2/3] ({li}/{len(langs)}) 处理 lang={lg}")
+        body = process_with_speakers(client, model, body_in.strip(), HOST_NAME, guest, lg)
+        out_path = _output_path(out_dir, fname, lg, multi)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        if fm_in and not multi:
+            out_path.write_text(f"{fm_in.rstrip()}\n\n{body.strip()}\n", encoding="utf-8")
+        else:
+            fm_new = build_frontmatter(
+                title=title, guest=guest, guest_company=None,
+                date=None, video_id="local", url=str(path), lang=lg,
+            )
+            write_episode(out_path, fm_new, title, body)
+        print(f"[3/3] ✓ {out_path}")
 
 
 def main() -> int:
@@ -368,6 +438,12 @@ def main() -> int:
         default="{date}_{title}",
         help="文件名模板,占位符:{date} {title} {guest} {guest_company} {video_id}",
     )
+    p.add_argument(
+        "--lang",
+        default=os.environ.get("OUTPUT_LANG", "zh"),
+        choices=["zh", "en", "both"],
+        help="输出语言:zh(中文翻译,默认)/ en(英文 + speaker)/ both(双语两个文件)",
+    )
     args = p.parse_args()
 
     api_key = os.environ.get("AI_API_KEY")
@@ -380,10 +456,10 @@ def main() -> int:
 
     if args.url:
         run_url(client, args.model, args.url, out_dir, args.filename_template,
-                args.guest, args.title)
+                args.guest, args.title, args.lang)
     else:
         run_file(client, args.model, Path(args.file), out_dir,
-                 args.filename_template, args.guest, args.title)
+                 args.filename_template, args.guest, args.title, args.lang)
     return 0
 
 

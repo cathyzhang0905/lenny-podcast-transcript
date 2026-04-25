@@ -1,6 +1,6 @@
 ---
 name: lenny-podcast-zh
-description: Use when the user shares a YouTube URL of an interview-style podcast (especially Lenny's Podcast) and wants the FULL Chinese 中文逐字稿/transcript with speaker labels. Triggers on phrases like "翻译成中文", "中文逐字稿", "中文 transcript", "把这个播客翻一下", combined with a YouTube URL. Do NOT use for summary/digest requests — this skill produces full verbatim transcripts.
+description: Use when the user shares a YouTube URL of an interview-style podcast (especially Lenny's Podcast) and wants the FULL transcript with speaker labels — Chinese 中文逐字稿, English with speaker tags, or both. Triggers on phrases like "翻译成中文", "中文逐字稿", "中文 transcript", "把这个播客翻一下", "give me the English transcript with speakers", combined with a YouTube URL. Do NOT use for summary/digest requests — this skill produces full verbatim transcripts.
 ---
 
 # lenny-podcast-zh
@@ -36,16 +36,21 @@ If any of these are missing, instruct the user to set them up first — don't tr
 
 3. **Optionally guess the guest name** from the title — but the CLI auto-extracts it from the YouTube title in most cases. Only use `--guest "Name"` override if the title format is unusual.
 
-4. **Run the CLI** via Bash:
+4. **Pick output language** based on user intent:
+   - User wants Chinese (default): `--lang zh`
+   - User wants English with speakers: `--lang en`
+   - User wants both: `--lang both` (writes `.en.md` and `.zh.md`)
+
+5. **Run the CLI** via Bash:
 
    ```bash
    REPO=$(cd ~/.claude/skills/lenny-podcast-zh/../../.. && pwd)
    cd "$REPO"
    source .venv/bin/activate
-   python lenny_transcript.py --url "<YOUTUBE_URL>"
+   python lenny_transcript.py --url "<YOUTUBE_URL>" --lang zh
    ```
 
-   Run in `run_in_background: true` since translation takes 5-15 minutes per episode. You'll get a completion notification.
+   Run in `run_in_background: true` since processing takes 5-15 minutes per episode (×2 for `--lang both`). You'll get a completion notification.
 
 5. **After completion**:
    - Read `transcripts/<filename>.md` to confirm output looks good
@@ -86,6 +91,5 @@ status: working-draft  # 工作稿,未经说话人审阅
 ## What this skill does NOT do
 
 - ❌ Summary / digest (use a different tool/skill)
-- ❌ Bilingual side-by-side (only Chinese output)
 - ❌ Audio download / Whisper transcription (relies on YouTube auto-captions)
-- ❌ Speaker diarization beyond LLM-inferred labels (~85% accuracy, occasional mislabels)
+- ❌ Speaker diarization beyond LLM-inferred labels (~70-80% accuracy, occasional mislabels — manual fix in editor)

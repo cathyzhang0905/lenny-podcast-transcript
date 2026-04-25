@@ -24,12 +24,14 @@ from lenny_transcript import (
     DEFAULT_BASE_URL,
     DEFAULT_MODEL,
     HOST_NAME,
+    _output_path,
+    _resolve_langs,
     build_frontmatter,
     extract_guest,
     fetch_transcript_en,
     fetch_video_meta,
     format_filename,
-    translate_with_speakers,
+    process_with_speakers,
     write_episode,
 )
 
@@ -105,6 +107,9 @@ def main() -> int:
     template = cfg.get("filename_template", "{date}_{title}")
     model = cfg.get("ai_model", DEFAULT_MODEL)
     base_url = cfg.get("ai_base_url", DEFAULT_BASE_URL)
+    output_lang = cfg.get("output_lang", "zh")
+    langs = _resolve_langs(output_lang)
+    multi = len(langs) > 1
     channels = cfg.get("channels", [])
     if not channels:
         print("config 里没有配置 channels", file=sys.stderr)
@@ -147,27 +152,22 @@ def main() -> int:
                 print(f"      guest={guest!r}  date={upload_date}")
                 en = fetch_transcript_en(item["video_id"])
                 print(f"      英文 {len(en):,} 字符")
-                body = translate_with_speakers(client, model, en, host, guest)
                 fname = format_filename(
-                    template,
-                    date=upload_date,
-                    title=title,
-                    guest=guest,
-                    guest_company=meta.get("author_name"),
-                    video_id=item["video_id"],
-                )
-                fm = build_frontmatter(
-                    title=title,
-                    guest=guest,
-                    guest_company=meta.get("author_name"),
-                    date=upload_date,
-                    video_id=item["video_id"],
-                    url=item["url"],
+                    template, date=upload_date, title=title, guest=guest,
+                    guest_company=meta.get("author_name"), video_id=item["video_id"],
                 )
                 h1 = f"{guest} — {title}" if title else item["video_id"]
-                out_path = transcripts_dir / f"{fname}.md"
-                write_episode(out_path, fm, h1, body)
-                print(f"      ✓ {out_path}")
+                for li, lg in enumerate(langs, 1):
+                    print(f"      ({li}/{len(langs)}) lang={lg}")
+                    body = process_with_speakers(client, model, en, host, guest, lg)
+                    fm = build_frontmatter(
+                        title=title, guest=guest,
+                        guest_company=meta.get("author_name"), date=upload_date,
+                        video_id=item["video_id"], url=item["url"], lang=lg,
+                    )
+                    out_path = _output_path(transcripts_dir, fname, lg, multi)
+                    write_episode(out_path, fm, h1, body)
+                    print(f"      ✓ {out_path}")
                 seen.add(item["video_id"])
                 total_new += 1
             except Exception as e:

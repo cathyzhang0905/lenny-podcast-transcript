@@ -8,8 +8,9 @@
 
 ## 特性
 
-- ✅ **完整逐字翻译**(非摘要)+ **说话人标注**(`**Lenny**` / `**<Guest>**` 块式)
-- ✅ **YAML frontmatter**(title / guest / date / video_id),Obsidian Dataview 友好
+- ✅ **中文 / 英文 / 双语三选一输出**:`output_lang: zh / en / both` —— 朋友要英文,我要中文,各取所需
+- ✅ **完整逐字处理**(非摘要)+ **说话人标注**(`**Lenny**` / `**<Guest>**` 块式)
+- ✅ **YAML frontmatter**(title / guest / date / video_id / lang),Obsidian Dataview 友好
 - ✅ **Provider 无关**:任何 OpenAI 兼容协议(OpenAI / DeepSeek / 硅基流动 / Moonshot / 智谱 / OpenRouter / Ollama 本地 ...)
 - ✅ **RSS 监听 + 自动去重**:扫已翻译文件的 frontmatter,只翻新集
 - ✅ **多频道扩展** + 可配置文件名模板
@@ -82,9 +83,18 @@ export AI_API_KEY="sk-..."
 ### 3. 跑一集试试
 
 ```bash
+# 默认中文翻译
 python lenny_transcript.py --url "https://www.youtube.com/watch?v=PplmzlgE0kg"
-# 输出:transcripts/2026-04-23_How-Anthropics-product-team-moves-faster.md
+
+# 只要英文(给英文母语朋友)
+python lenny_transcript.py --url "..." --lang en
+
+# 双语都要(API 成本 ×2)
+python lenny_transcript.py --url "..." --lang both
+# 输出:transcripts/<...>.en.md 和 transcripts/<...>.zh.md
 ```
+
+设置 `output_lang: zh|en|both` 在 `config.yaml` 里改默认。
 
 ### 4. 监听新集(自动去重)
 
@@ -117,7 +127,7 @@ crontab -e
 
 **Q: 我跑了出 `RequestBlocked` 怎么办?**
 
-YouTube 短期 rate-limit 你的 IP(常见于反复跑同一个视频)。等 30-60 分钟换网络再试。如果跑在云厂商 IP(GitHub Actions / AWS / GCP),大概率会被永久封 —— 需要旋转代理或换本地跑。
+YouTube 短期 rate-limit 你的 IP(常见于反复跑同一个视频)。等 30-60 分钟或换网络再试。云 IP(GitHub Actions / AWS)长期被封,需跑本地或加代理。
 
 **Q: 说话人标错了怎么修?**
 
