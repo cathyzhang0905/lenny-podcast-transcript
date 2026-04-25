@@ -21,9 +21,9 @@ import yaml
 from openai import OpenAI
 
 from lenny_transcript import (
-    BASE_URL,
+    DEFAULT_BASE_URL,
+    DEFAULT_MODEL,
     HOST_NAME,
-    MODEL,
     build_frontmatter,
     extract_guest,
     fetch_transcript_en,
@@ -90,21 +90,27 @@ def main() -> int:
     p.add_argument("--limit", type=int, default=None, help="本次最多翻译多少集(避免首次跑爆)")
     args = p.parse_args()
 
-    api_key = os.environ.get("SILICONFLOW_API_KEY")
+    api_key = os.environ.get("AI_API_KEY")
     if not api_key and not args.dry_run:
-        print("错误:请先 export SILICONFLOW_API_KEY=...", file=sys.stderr)
+        print("错误:请先 export AI_API_KEY=...", file=sys.stderr)
         return 1
 
-    cfg = load_config(Path(args.config))
+    cfg_path = Path(args.config)
+    if not cfg_path.exists():
+        print(f"错误:config 不存在 {cfg_path}", file=sys.stderr)
+        print("       先 cp config.example.yaml config.yaml,然后按需修改", file=sys.stderr)
+        return 1
+    cfg = load_config(cfg_path)
     transcripts_dir = Path(cfg.get("output_dir", "./transcripts"))
     template = cfg.get("filename_template", "{date}_{title}")
-    model = cfg.get("model", MODEL)
+    model = cfg.get("ai_model", DEFAULT_MODEL)
+    base_url = cfg.get("ai_base_url", DEFAULT_BASE_URL)
     channels = cfg.get("channels", [])
     if not channels:
         print("config 里没有配置 channels", file=sys.stderr)
         return 1
 
-    client = None if args.dry_run else OpenAI(api_key=api_key, base_url=BASE_URL)
+    client = None if args.dry_run else OpenAI(api_key=api_key, base_url=base_url)
     seen = known_video_ids(transcripts_dir)
     print(f"已翻译 {len(seen)} 集,扫描自 {transcripts_dir}/")
 

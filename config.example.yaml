@@ -1,19 +1,57 @@
-# Fork 模板 - 复制为 config.yaml 后填入你自己的频道
+# Fork 模板 - 复制为 config.yaml 后填入你自己的设置:
+#   cp config.example.yaml config.yaml
 #
-# 找到一个频道的 channel_id:
-#   1. 浏览器打开该频道任意一集视频
-#   2. 查看页面源码,搜 "channelId" -> "UC..."
-#   3. 把那串 UC 开头的字符填到下面
+# config.yaml 已被 .gitignore 忽略,你的修改不会推到 fork。
 
+# ==========================================
+# LLM Provider (OpenAI 兼容协议)
+# ==========================================
+# 默认 OpenAI。换成任意主流厂商 - 只要支持 OpenAI 兼容协议都能用,
+# 改 ai_base_url 和 ai_model 两项即可,key 通过 env AI_API_KEY 传入。
+#
+# 常见厂商速查表:
+#   OpenAI         ai_base_url: https://api.openai.com/v1                          ai_model: gpt-4o-mini
+#   DeepSeek       ai_base_url: https://api.deepseek.com                           ai_model: deepseek-chat
+#   硅基流动        ai_base_url: https://api.siliconflow.cn/v1                      ai_model: Qwen/Qwen2.5-72B-Instruct
+#   通义千问        ai_base_url: https://dashscope.aliyuncs.com/compatible-mode/v1  ai_model: qwen-plus
+#   月之暗面 Kimi   ai_base_url: https://api.moonshot.cn/v1                         ai_model: moonshot-v1-32k
+#   智谱 GLM       ai_base_url: https://open.bigmodel.cn/api/paas/v4               ai_model: glm-4-flash
+#   MiniMax        ai_base_url: https://api.minimax.chat/v1                        ai_model: abab6.5s-chat
+#   零一万物 Yi    ai_base_url: https://api.lingyiwanwu.com/v1                     ai_model: yi-large
+#   百度文心        ai_base_url: https://qianfan.baidubce.com/v2                    ai_model: ernie-4.0-8k
+#   讯飞星火        ai_base_url: https://spark-api-open.xf-yun.com/v1               ai_model: generalv3.5
+#   OpenRouter     ai_base_url: https://openrouter.ai/api/v1                       ai_model: openai/gpt-4o-mini
+#   Ollama (本地)  ai_base_url: http://localhost:11434/v1                          ai_model: qwen2.5:7b
+ai_base_url: https://api.openai.com/v1
+ai_model: gpt-4o-mini
+
+
+# ==========================================
+# 监听的 YouTube 频道
+# ==========================================
+# 每个频道:
+#   name        日志识别短名
+#   channel_id  YouTube 频道 ID(UC 开头),浏览器打开任意一集 → 查看页面源码 → 搜 "channelId"
+#   host        该频道主持人,用于说话人标注
 channels:
   - name: lenny
-    channel_id: UC6t1O76G0jYXOAoYCm153dA   # 这是 Lenny's Podcast 默认值,可改
+    channel_id: UC6t1O76G0jYXOAoYCm153dA   # Lenny's Podcast
     host: Lenny
-  # 多频道示例:
+  # 多频道扩展示例:
   # - name: latent-space
   #   channel_id: UCxxxxxxxxxxxxxx
   #   host: Swyx
 
+
+# ==========================================
+# 输出 / 命名
+# ==========================================
 output_dir: ./transcripts
+
+# 文件名模板。可用占位符:
+#   {date}           视频上传日期 YYYY-MM-DD
+#   {title}          视频标题(已清洗)
+#   {guest}          嘉宾名
+#   {guest_company}  嘉宾公司(从 oembed 拿)
+#   {video_id}       YouTube 视频 ID,11 字符,全局唯一
 filename_template: "{date}_{title}"
-model: Qwen/Qwen2.5-72B-Instruct

@@ -22,7 +22,7 @@
     <array>
         <string>/bin/bash</string>
         <string>-c</string>
-        <string>cd "&lt;REPO_PATH&gt;" &amp;&amp; source .venv/bin/activate &amp;&amp; export SILICONFLOW_API_KEY="&lt;YOUR_API_KEY&gt;" &amp;&amp; python watcher.py 2&gt;&amp;1 | tee -a run.log</string>
+        <string>cd "&lt;REPO_PATH&gt;" &amp;&amp; source .venv/bin/activate &amp;&amp; export AI_API_KEY="&lt;YOUR_API_KEY&gt;" &amp;&amp; python watcher.py 2&gt;&amp;1 | tee -a run.log</string>
     </array>
 
     <key>StartCalendarInterval</key>

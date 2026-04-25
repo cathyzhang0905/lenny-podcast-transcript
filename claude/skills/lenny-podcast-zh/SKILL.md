@@ -11,13 +11,13 @@ When invoked, run the lenny-podcast-transcript CLI to translate a YouTube podcas
 
 1. Repo cloned at `~/path-to/lenny-podcast-transcript/` (ask user where if unsure)
 2. `.venv` set up with `pip install -r requirements.txt`
-3. Env var `SILICONFLOW_API_KEY` available (硅基流动 key from `https://cloud.siliconflow.cn/`)
+3. Env var `AI_API_KEY` available (any OpenAI-compatible provider — OpenAI / DeepSeek / 硅基流动 / Moonshot / 智谱 / OpenRouter)
 
 If any of these are missing, instruct the user to set them up first — don't try to run the tool partially set up.
 
 ## How to use
 
-1. **Confirm intent**: this skill is for full verbatim transcripts (~5-15 min runtime, ~¥0.20-0.50 per episode). If the user wants a quick summary, defer.
+1. **Confirm intent**: this skill is for full verbatim transcripts (~5-15 min runtime, cost varies by provider/model — typically $0.05-2.00 USD per episode). If the user wants a quick summary, defer.
 
 2. **Get the YouTube URL** from the user message.
 

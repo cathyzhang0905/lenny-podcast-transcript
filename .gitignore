@@ -15,3 +15,6 @@ run.log
 
 # 本地测试输出(open source 用户可能想本地试跑不污染 transcripts/)
 output/
+
+# 用户本地配置(从 config.example.yaml 复制后改)
+config.yaml

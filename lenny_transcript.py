@@ -20,8 +20,8 @@ from pathlib import Path
 from openai import OpenAI
 from youtube_transcript_api import YouTubeTranscriptApi
 
-BASE_URL = "https://api.siliconflow.cn/v1"
-MODEL = "Qwen/Qwen2.5-72B-Instruct"
+DEFAULT_BASE_URL = "https://api.openai.com/v1"
+DEFAULT_MODEL = "gpt-4o-mini"
 CHUNK_CHAR_LIMIT = 6000
 HOST_NAME = "Lenny"
 
@@ -359,7 +359,10 @@ def main() -> int:
     p.add_argument("--out", default="./transcripts", help="输出目录(默认 ./transcripts)")
     p.add_argument("--guest", default=None, help="覆盖嘉宾名(标题抽不准时手动指定)")
     p.add_argument("--title", default=None, help="覆盖标题")
-    p.add_argument("--model", default=MODEL, help=f"模型 ID(默认 {MODEL})")
+    p.add_argument("--base-url", default=os.environ.get("AI_BASE_URL", DEFAULT_BASE_URL),
+                   help="OpenAI 兼容协议 endpoint(env: AI_BASE_URL)")
+    p.add_argument("--model", default=os.environ.get("AI_MODEL", DEFAULT_MODEL),
+                   help="模型 ID(env: AI_MODEL)")
     p.add_argument(
         "--filename-template",
         default="{date}_{title}",
@@ -367,12 +370,12 @@ def main() -> int:
     )
     args = p.parse_args()
 
-    api_key = os.environ.get("SILICONFLOW_API_KEY")
+    api_key = os.environ.get("AI_API_KEY")
     if not api_key:
-        print("错误:请先 export SILICONFLOW_API_KEY=...", file=sys.stderr)
+        print("错误:请先 export AI_API_KEY=...", file=sys.stderr)
         return 1
 
-    client = OpenAI(api_key=api_key, base_url=BASE_URL)
+    client = OpenAI(api_key=api_key, base_url=args.base_url)
     out_dir = Path(args.out)
 
     if args.url:
