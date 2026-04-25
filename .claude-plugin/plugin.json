@@ -1,0 +1,11 @@
+{
+  "name": "lenny-podcast-transcript",
+  "description": "Auto-translate Lenny's Podcast (or any YouTube channel) into Chinese / English / bilingual transcripts with speaker labels and YAML frontmatter. RSS-watched, Obsidian-ready.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Cathy Zhang"
+  },
+  "homepage": "https://github.com/cathyzhang0905/lenny-podcast-transcript",
+  "repository": "https://github.com/cathyzhang0905/lenny-podcast-transcript",
+  "license": "MIT"
+}

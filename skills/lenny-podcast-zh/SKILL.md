@@ -16,15 +16,14 @@ When invoked, run the lenny-podcast-transcript CLI to translate a YouTube podcas
 
 ## Resolving repo path
 
-The skill itself is a symlink target inside the repo at `<REPO>/claude/skills/lenny-podcast-zh`. To get the repo root:
+The skill lives at `<REPO>/skills/lenny-podcast-zh` (two levels under repo root). To resolve repo root regardless of whether the user installed via `/plugin install` or symlinked manually:
 
 ```bash
-REPO=$(cd "$(dirname "$(readlink ~/.claude/skills/lenny-podcast-zh)")/../.." && pwd)
-# Or one-liner:
-REPO=$(cd ~/.claude/skills/lenny-podcast-zh/../../.. && pwd)
+SKILL_DIR=$(readlink -f ~/.claude/skills/lenny-podcast-zh 2>/dev/null || echo ~/.claude/skills/lenny-podcast-zh)
+REPO=$(cd "$SKILL_DIR/../.." && pwd)
 ```
 
-If the symlink doesn't exist, ask the user for the repo path explicitly.
+If the path can't be resolved, ask the user for the repo path explicitly.
 
 If any of these are missing, instruct the user to set them up first — don't try to run the tool partially set up.
 
@@ -44,7 +43,8 @@ If any of these are missing, instruct the user to set them up first — don't tr
 5. **Run the CLI** via Bash:
 
    ```bash
-   REPO=$(cd ~/.claude/skills/lenny-podcast-zh/../../.. && pwd)
+   SKILL_DIR=$(readlink -f ~/.claude/skills/lenny-podcast-zh 2>/dev/null || echo ~/.claude/skills/lenny-podcast-zh)
+   REPO=$(cd "$SKILL_DIR/../.." && pwd)
    cd "$REPO"
    source .venv/bin/activate
    python lenny_transcript.py --url "<YOUTUBE_URL>" --lang zh

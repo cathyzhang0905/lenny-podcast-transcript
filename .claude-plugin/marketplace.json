@@ -1,0 +1,14 @@
+{
+  "name": "lenny-transcript-tools",
+  "owner": {
+    "name": "Cathy Zhang"
+  },
+  "plugins": [
+    {
+      "name": "lenny-podcast-transcript",
+      "source": ".",
+      "description": "Auto-translate YouTube podcasts (Lenny's & friends) into 中文 / English / bilingual transcripts with speaker labels and YAML frontmatter.",
+      "version": "0.1.0"
+    }
+  ]
+}
