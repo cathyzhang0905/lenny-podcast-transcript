@@ -10,10 +10,14 @@
 """
 
 import argparse
+import html as _html
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 import time
 import urllib.request
 from datetime import date as _date
@@ -229,10 +233,80 @@ def apply_asr_fixes(text: str) -> str:
     return text
 
 
-def fetch_transcript_en(video_id: str) -> str:
+def _looks_like_ip_block(err: Exception) -> bool:
+    """Detect IP-block / rate-limit / bot-check errors from youtube-transcript-api."""
+    msg = f"{type(err).__name__} {err}"
+    return any(kw in msg for kw in (
+        "RequestBlocked", "IpBlocked", "blocked",
+        "Sign in to confirm", "bot", "429",
+    ))
+
+
+def _fetch_via_yta(video_id: str) -> str:
     api = YouTubeTranscriptApi()
     fetched = api.fetch(video_id, languages=["en", "en-US", "en-GB"])
-    text = " ".join(snippet.text for snippet in fetched)
+    return " ".join(snippet.text for snippet in fetched)
+
+
+def _parse_vtt(vtt: str) -> str:
+    """Strip VTT timestamps/tags, dedupe rolling-text lines from auto-captions."""
+    lines_out: list[str] = []
+    for line in vtt.splitlines():
+        line = line.strip()
+        if not line or line.startswith(("WEBVTT", "Kind:", "Language:")):
+            continue
+        if "-->" in line:
+            continue
+        line = re.sub(r"<[^>]+>", "", line).strip()
+        if line and (not lines_out or lines_out[-1] != line):
+            lines_out.append(line)
+    text = _html.unescape(" ".join(lines_out))
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _fetch_via_ytdlp(video_id: str) -> str:
+    """Fallback: yt-dlp + 浏览器 cookies。需要本机装了 yt-dlp 且对应浏览器登录过 YouTube。"""
+    if not shutil.which("yt-dlp"):
+        raise RuntimeError(
+            "yt-dlp 未安装(fallback 路径需要)。pip install yt-dlp 后重试。"
+        )
+    browser = os.environ.get("YT_DLP_COOKIES_BROWSER", "chrome")
+    with tempfile.TemporaryDirectory() as tmp:
+        result = subprocess.run(
+            [
+                "yt-dlp", "--quiet",
+                "--skip-download", "--write-auto-sub",
+                "--sub-lang", "en", "--sub-format", "vtt",
+                "--cookies-from-browser", browser,
+                "-o", f"{tmp}/%(id)s.%(ext)s",
+                f"https://www.youtube.com/watch?v={video_id}",
+            ],
+            capture_output=True, text=True, timeout=180,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"yt-dlp 失败 (browser={browser}):\n{result.stderr[-600:]}\n"
+                f"提示:确认 {browser} 已登录 YouTube;或设 env YT_DLP_COOKIES_BROWSER=firefox/safari/edge 切换"
+            )
+        vtt_files = list(Path(tmp).glob("*.vtt"))
+        if not vtt_files:
+            raise RuntimeError(f"yt-dlp 跑成功但没产出 .vtt 文件;stderr={result.stderr[-400:]}")
+        return _parse_vtt(vtt_files[0].read_text(encoding="utf-8"))
+
+
+def fetch_transcript_en(video_id: str, allow_fallback: bool = True) -> str:
+    """主路径走 youtube-transcript-api;撞 IP block 时自动 fallback 到 yt-dlp + 浏览器 cookies。
+
+    需禁用 fallback(用于测试)时传 allow_fallback=False。
+    """
+    try:
+        text = _fetch_via_yta(video_id)
+    except Exception as e:
+        if allow_fallback and _looks_like_ip_block(e):
+            print(f"      ⚠️ 主路径被 block ({type(e).__name__}),fallback 到 yt-dlp + 浏览器 cookies...")
+            text = _fetch_via_ytdlp(video_id)
+        else:
+            raise
     text = re.sub(r"\[.*?\]", "", text)
     text = re.sub(r">>\s*", "", text)
     text = re.sub(r"\s+", " ", text).strip()

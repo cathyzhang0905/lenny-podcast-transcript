@@ -129,9 +129,13 @@ crontab -e
 
 ## FAQ
 
-**Q: 我跑了出 `RequestBlocked` 怎么办?**
+**Q: 主路径撞 IP block 怎么办?会自动恢复吗?**
 
-YouTube 短期 rate-limit 你的 IP(常见于反复跑同一个视频)。等 30-60 分钟或换网络再试。云 IP(GitHub Actions / AWS)长期被封,需跑本地或加代理。
+会。代码里**自动 fallback**:`youtube-transcript-api` 撞 `RequestBlocked` 时,自动切到 `yt-dlp --cookies-from-browser`(读你浏览器登录态绕过反爬)。前提:本地装了 `yt-dlp`(在 requirements.txt 里默认装)+ Chrome / Firefox / Safari / Edge 任一浏览器登录过 YouTube。
+
+如要用非 Chrome 的浏览器:`export YT_DLP_COOKIES_BROWSER=firefox`(或 safari / edge)。
+
+云 IP 段(GitHub Actions / AWS / GCP)即使 fallback 也常被封,仍建议跑本地。
 
 **Q: 说话人标错了怎么修?**
 
