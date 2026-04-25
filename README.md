@@ -1,18 +1,20 @@
-# Lenny's Podcast → 中文 Transcript 自动化
+# Lenny's Podcast → Transcript 自动化(中文 / 英文 / 双语)
 
-把 Lenny's Podcast(或任意 YouTube 频道)的英文播客自动翻译成**带说话人标注的中文逐字稿**,支持周期监听新集 + Obsidian 友好的 YAML frontmatter。
+> *Auto-translate Lenny's Podcast (or any YouTube channel) into Chinese / English / bilingual transcripts with speaker labels. RSS-watched, Obsidian-ready.*
 
-📂 **看产物**:[`transcripts/`](transcripts/) 目录(自动生成,定期更新)
+把 Lenny's Podcast(或任意 YouTube 频道)的英文播客自动转换成**带说话人标注的逐字稿**,可输出**中文翻译 / 英文原文(带 speaker 标注) / 双语两份文件**,支持周期监听新集 + Obsidian 友好的 YAML frontmatter。
 
-> ⚠️ 译文为工作稿,未经说话人审阅。基于 YouTube 自动字幕翻译,质量受其 ASR 上限制约。
+📂 **看产物**:[`transcripts/`](transcripts/) 目录(由本地 launchd / cron 周期自动更新,默认每周一)
+
+> ⚠️ Working draft, not reviewed by speakers. Based on YouTube auto-captions, quality limited by ASR ceiling.
 
 ## 特性
 
-- ✅ **中文 / 英文 / 双语三选一输出**:`output_lang: zh / en / both` —— 朋友要英文,我要中文,各取所需
+- ✅ **中文 / 英文 / 双语三选一输出**(`output_lang: zh / en / both`)
 - ✅ **完整逐字处理**(非摘要)+ **说话人标注**(`**Lenny**` / `**<Guest>**` 块式)
 - ✅ **YAML frontmatter**(title / guest / date / video_id / lang),Obsidian Dataview 友好
 - ✅ **Provider 无关**:任何 OpenAI 兼容协议(OpenAI / DeepSeek / 硅基流动 / Moonshot / 智谱 / OpenRouter / Ollama 本地 ...)
-- ✅ **RSS 监听 + 自动去重**:扫已翻译文件的 frontmatter,只翻新集
+- ✅ **RSS 监听 + 自动去重 + 周期化**(macOS launchd / Linux cron,默认每周一跑;只翻新集)
 - ✅ **多频道扩展** + 可配置文件名模板
 
 ❌ 不做摘要 / 不做 audio download / 不做 Whisper diarization
@@ -27,6 +29,7 @@ guest_company: "Lenny's Podcast"
 date: 2026-04-23
 video_id: PplmzlgE0kg
 url: https://www.youtube.com/watch?v=PplmzlgE0kg
+lang: zh
 source: youtube-auto-captions
 status: working-draft  # 工作稿,未经说话人审阅
 ---
@@ -89,7 +92,7 @@ python lenny_transcript.py --url "https://www.youtube.com/watch?v=PplmzlgE0kg"
 # 只要英文(给英文母语朋友)
 python lenny_transcript.py --url "..." --lang en
 
-# 双语都要(API 成本 ×2)
+# 双语都要(API 成本约 ×2,跑两轮)
 python lenny_transcript.py --url "..." --lang both
 # 输出:transcripts/<...>.en.md 和 transcripts/<...>.zh.md
 ```
