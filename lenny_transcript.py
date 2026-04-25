@@ -14,11 +14,12 @@ import json
 import os
 import re
 import sys
+import time
 import urllib.request
 from datetime import date as _date
 from pathlib import Path
 
-from openai import OpenAI
+from openai import OpenAI, RateLimitError
 from youtube_transcript_api import YouTubeTranscriptApi
 
 DEFAULT_BASE_URL = "https://api.openai.com/v1"
@@ -261,18 +262,28 @@ def detect_last_speaker(zh: str, host: str, guest: str) -> str | None:
 
 def translate_chunk(client: OpenAI, model: str, chunk: str, host: str,
                     guest: str, last_speaker: str | None, lang: str = "zh",
-                    full_context: str | None = None) -> str:
-    resp = client.chat.completions.create(
-        model=model,
-        max_tokens=8192,
-        temperature=0.3,
-        messages=[
-            {"role": "system",
-             "content": system_prompt(host, guest, last_speaker, lang, full_context)},
-            {"role": "user", "content": chunk},
-        ],
-    )
-    return (resp.choices[0].message.content or "").strip()
+                    full_context: str | None = None, max_retries: int = 4) -> str:
+    """带 429 退避重试。等待序列 30/60/120/240s,共最多 ~7 分钟。"""
+    last_err: Exception | None = None
+    for attempt in range(max_retries):
+        try:
+            resp = client.chat.completions.create(
+                model=model,
+                max_tokens=8192,
+                temperature=0.3,
+                messages=[
+                    {"role": "system",
+                     "content": system_prompt(host, guest, last_speaker, lang, full_context)},
+                    {"role": "user", "content": chunk},
+                ],
+            )
+            return (resp.choices[0].message.content or "").strip()
+        except RateLimitError as e:
+            last_err = e
+            wait = 30 * (2 ** attempt)
+            print(f"      ⚠️ 429 rate limit (attempt {attempt+1}/{max_retries}),sleep {wait}s 后重试")
+            time.sleep(wait)
+    raise last_err if last_err else RuntimeError("translate_chunk: unexpected fallthrough")
 
 
 def process_with_speakers(client: OpenAI, model: str, en_text: str,
@@ -286,9 +297,12 @@ def process_with_speakers(client: OpenAI, model: str, en_text: str,
     ctx_note = "+全文上下文" if full_context else "(局部上下文)"
     print(f"      {action} {len(chunks)} 块 {ctx_note} (model={model}, lang={lang})")
     full_ctx = en_text if full_context else None
+    pace = 8 if full_context else 0   # full-context 模式下每次调用间 sleep,避免撞 TPM
     parts: list[str] = []
     last_speaker: str | None = None
     for i, ch in enumerate(chunks, 1):
+        if i > 1 and pace:
+            time.sleep(pace)
         print(f"      [{i}/{len(chunks)}] {len(ch):,} 字符 → 处理中…")
         out = translate_chunk(client, model, ch, host, guest, last_speaker, lang, full_ctx)
         parts.append(out)
