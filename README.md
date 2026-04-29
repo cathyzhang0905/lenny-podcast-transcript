@@ -204,3 +204,11 @@ python lenny_transcript.py --url "https://www.youtube.com/watch?v=..." --lang zh
 ## License
 
 [MIT](LICENSE)。注意:`transcripts/` 下的中文译稿是基于第三方播客的派生工作稿,版权归原说话人所有,本仓库不主张其权利,仅作为个人学习/研究笔记保存。
+
+---
+
+## About the builder
+
+Built by **Cathy** ([@cathyzhang0905](https://github.com/cathyzhang0905)) — AI-native PM. Senior PM at DiDi, pivoting to AI-native product roles. I build tools at the intersection of [agent oversight](https://github.com/cathyzhang0905/agent-cockpit) and [personal information processing](https://github.com/cathyzhang0905).
+
+Interested in **agent collaboration / vertical agents / AI PM workflows / eval methodology**? Open an issue or reach me at [@cathyzhang0905](https://github.com/cathyzhang0905).
